@@ -1,8 +1,9 @@
 import os
 import sys
+import json
 import customtkinter as ctk
 from utils import limpeza, hardware, booster
-from usuarios import baixar_usuarios  # pega usuários do GitHub
+import requests
 
 ctk.set_appearance_mode("dark")
 AZUL = "#2da8ff"
@@ -10,6 +11,32 @@ tentativas = 0
 deep_aberto = False
 
 fivem = os.path.expanduser(r"~\AppData\Local\FiveM\FiveM.app")
+
+# ================= FUNÇÃO CAMINHO RELATIVO =================
+def caminho_relativo(caminho):
+    """Retorna o caminho correto quando rodando .exe com PyInstaller"""
+    if getattr(sys, 'frozen', False):
+        base_path = sys._MEIPASS
+    else:
+        base_path = os.path.dirname(os.path.abspath(__file__))
+    return os.path.join(base_path, caminho)
+
+USUARIOS_JSON = caminho_relativo("config/usuarios.json")
+
+# ================= FUNÇÃO PARA BAIXAR USUÁRIOS DO GITHUB =================
+REPO = "KnAgux/4ManageUsers"
+BRANCH = "reorganizacao-pastas"
+ARQUIVO = "config/usuarios.json"
+
+def baixar_usuarios_github():
+    url = f"https://raw.githubusercontent.com/{REPO}/{BRANCH}/{ARQUIVO}"
+    try:
+        r = requests.get(url)
+        r.raise_for_status()
+        return r.json()
+    except Exception as e:
+        print(f"Erro ao baixar usuários do GitHub: {e}")
+        return []
 
 # ================= LOGIN =================
 def login():
@@ -23,14 +50,23 @@ def login():
         usuario_input = usuario.get()
         senha_input = senha.get()
 
-        # Busca usuários diretamente do GitHub
-        lista_usuarios = baixar_usuarios()
+        # Primeiro tenta baixar do GitHub
+        lista_usuarios = baixar_usuarios_github()
 
-        valido = False
-        for u in lista_usuarios:
-            if u["usuario"] == usuario_input and u["senha"] == senha_input:
-                valido = True
-                break
+        # Se falhar, usa o arquivo local
+        if not lista_usuarios:
+            try:
+                with open(USUARIOS_JSON, "r", encoding="utf-8") as f:
+                    lista_usuarios = json.load(f)
+            except Exception as e:
+                print(f"Erro ao ler arquivo local: {e}")
+                lista_usuarios = []
+
+        # Verifica usuário e senha
+        valido = any(
+            u.get("usuario") == usuario_input and u.get("senha") == senha_input
+            for u in lista_usuarios
+        )
 
         if valido:
             tela.destroy()
@@ -45,6 +81,7 @@ def login():
                 tela.destroy()
                 sys.exit()
 
+    # ================= CRIAÇÃO DA TELA =================
     ctk.CTkLabel(tela, text="4Manage", font=ctk.CTkFont(size=30, weight="bold")).pack(pady=5)
     usuario = ctk.CTkEntry(tela, placeholder_text="Email/Usuário", width=200)
     usuario.pack(pady=5)
@@ -56,6 +93,7 @@ def login():
     tela.protocol("WM_DELETE_WINDOW", sys.exit)
     tela.mainloop()
 
+# Executa login
 login()
 
 # ================= FUNÇÃO DE LOG =================
@@ -122,7 +160,10 @@ def iniciar_limpeza():
     ]
     total = len(tarefas)
     for i, tarefa in enumerate(tarefas):
-        tarefa()
+        try:
+            tarefa()
+        except Exception as e:
+            log(f"Erro na tarefa {tarefa.__name__ if hasattr(tarefa,'__name__') else str(tarefa)}: {e}")
         progress.set((i+1)/total)
     log("Limpeza completa")
 
@@ -170,10 +211,22 @@ botao(frame_dir, "FiveM Cache", lambda: limpeza.limpar_fivem_cache(fivem))
 
 # --- Privado ---
 painel_privado = ctk.CTkFrame(aba_privado)
+
 def verificar_privado():
     if senha_priv.get() == "Booster4Manage":
         login_priv.pack_forget()
         painel_privado.pack(pady=20)
+
+# --- Botão 4MANAGEPRO ---
+def pro_limpeza():
+    iniciar_limpeza()
+    booster.limpar_registro()
+    booster.limpar_event_logs()
+    booster.limpar_journal()
+    booster.limpar_shadow()
+    limpeza.limpar_historico_navegadores()
+    limpeza.limpar_downloads_navegador()
+    log("4MANAGEPRO executado: limpeza completa do sistema.")
 
 login_priv = ctk.CTkFrame(aba_privado)
 login_priv.pack(pady=40)
@@ -186,6 +239,13 @@ ctk.CTkButton(
     text="Booster FPS FiveM",
     fg_color="#00ff9c",
     command=booster.booster_fps
+).pack(pady=10)
+
+ctk.CTkButton(
+    painel_privado,
+    text="4MANAGEPRO",
+    fg_color="#ff5f5f",
+    command=pro_limpeza
 ).pack(pady=10)
 
 # Atualizar hardware
