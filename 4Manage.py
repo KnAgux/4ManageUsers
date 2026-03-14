@@ -1,15 +1,40 @@
 import os
 import sys
+import json
 import customtkinter as ctk
 from utils import limpeza, hardware, booster
-from usuarios import baixar_usuarios  # pega usuários do GitHub
+import requests
 
+# ================= CONFIGURAÇÕES =================
 ctk.set_appearance_mode("dark")
 AZUL = "#2da8ff"
 tentativas = 0
 deep_aberto = False
-
 fivem = os.path.expanduser(r"~\AppData\Local\FiveM\FiveM.app")
+
+# ================= FUNÇÃO CAMINHO RELATIVO =================
+def caminho_relativo(caminho):
+    """Retorna o caminho correto quando rodando .exe com PyInstaller"""
+    if getattr(sys, 'frozen', False):
+        base_path = sys._MEIPASS
+    else:
+        base_path = os.path.dirname(os.path.abspath(__file__))
+    return os.path.join(base_path, caminho)
+
+USUARIOS_JSON = caminho_relativo("config/usuarios.json")
+
+# ================= FUNÇÃO BAIXAR USUÁRIOS GITHUB =================
+REPO = "KnAgux/4ManageUsers"
+
+def baixar_usuarios_github():
+    url = f"https://raw.githubusercontent.com/{REPO}/main/usuarios.json"
+    try:
+        r = requests.get(url)
+        r.raise_for_status()
+        return r.json()
+    except Exception as e:
+        print(f"Erro ao baixar usuários do GitHub: {e}")
+        return []
 
 # ================= LOGIN =================
 def login():
@@ -23,14 +48,17 @@ def login():
         usuario_input = usuario.get()
         senha_input = senha.get()
 
-        # Busca usuários diretamente do GitHub
-        lista_usuarios = baixar_usuarios()
+        # Primeiro tenta GitHub, depois arquivo local
+        lista_usuarios = baixar_usuarios_github()
+        if not lista_usuarios:
+            try:
+                with open(USUARIOS_JSON, "r", encoding="utf-8") as f:
+                    lista_usuarios = json.load(f)
+            except Exception as e:
+                print(f"Erro ao ler arquivo local: {e}")
+                lista_usuarios = []
 
-        valido = False
-        for u in lista_usuarios:
-            if u["usuario"] == usuario_input and u["senha"] == senha_input:
-                valido = True
-                break
+        valido = any(u["usuario"] == usuario_input and u["senha"] == senha_input for u in lista_usuarios)
 
         if valido:
             tela.destroy()
@@ -122,7 +150,10 @@ def iniciar_limpeza():
     ]
     total = len(tarefas)
     for i, tarefa in enumerate(tarefas):
-        tarefa()
+        try:
+            tarefa()
+        except Exception as e:
+            log(f"Erro na tarefa {tarefa.__name__ if hasattr(tarefa,'__name__') else str(tarefa)}: {e}")
         progress.set((i+1)/total)
     log("Limpeza completa")
 
@@ -154,6 +185,7 @@ frame_dir.pack(side="right", expand=True, padx=40, pady=20)
 def botao(frame, texto, cmd):
     ctk.CTkButton(frame, text=texto, width=180, height=40, fg_color=AZUL, command=cmd).pack(pady=8)
 
+# Esquerda
 botao(frame_esq, "Temp", limpeza.limpar_temp)
 botao(frame_esq, "Windows Temp", limpeza.limpar_windows_temp)
 botao(frame_esq, "Prefetch", limpeza.limpar_prefetch)
@@ -162,6 +194,7 @@ botao(frame_esq, "Crash Dumps", limpeza.limpar_crash)
 botao(frame_esq, "Lixeira", limpeza.limpar_lixeira)
 botao(frame_esq, "Downloads", limpeza.limpar_downloads)
 
+# Direita
 botao(frame_dir, "Shader Cache", limpeza.limpar_shader)
 botao(frame_dir, "DirectX Cache", limpeza.limpar_directx)
 botao(frame_dir, "Logs Windows", limpeza.limpar_logs)
@@ -170,6 +203,7 @@ botao(frame_dir, "FiveM Cache", lambda: limpeza.limpar_fivem_cache(fivem))
 
 # --- Privado ---
 painel_privado = ctk.CTkFrame(aba_privado)
+
 def verificar_privado():
     if senha_priv.get() == "Booster4Manage":
         login_priv.pack_forget()
