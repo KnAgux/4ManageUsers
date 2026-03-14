@@ -1,23 +1,64 @@
+# -------------------
 # Python
+# -------------------
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
-*.env
-*.venv
+*.py[cod]
+*$py.class
 
+# -------------------
+# Virtual environment
+# -------------------
+.venv/
+env/
+venv/
+ENV/
+
+# -------------------
 # PyInstaller
+# -------------------
+# Pastas geradas pelo pyinstaller
 build/
 dist/
+
+# Arquivos gerados pelo PyInstaller
 *.spec
+*.pkg
+*.toc
+*.pyz
+*.log
+*.zip
 
-# VSCode / PyCharm
-.vscode/
+# -------------------
+# Editor / IDE
+# -------------------
+# PyCharm
 .idea/
+*.iml
 
-# Sistema
+# VSCode
+.vscode/
+
+# -------------------
+# Sistema / OS
+# -------------------
 .DS_Store
 Thumbs.db
+desktop.ini
 
-# Usuários temporários (se você não quiser enviar o JSON)
-# usuarios.json  # comente se quiser versionar o arquivo
+# -------------------
+# Arquivos de configuração sensíveis
+# -------------------
+# Não subir usuários ou senhas locais
+config/usuarios.json
+
+# -------------------
+# Outros arquivos que não devem ir para o GitHub
+# -------------------
+*.exe
+*.dll
+*.bat
+*.tmp
+*.log

@@ -1,7 +1,8 @@
 import os
 import sys
 import customtkinter as ctk
-from utils import limpeza, hardware, booster, usuarios  # import do utils/usuarios.py para pegar usuários do GitHub
+from utils import limpeza, hardware, booster
+from usuarios import baixar_usuarios  # pega usuários do GitHub
 
 ctk.set_appearance_mode("dark")
 AZUL = "#2da8ff"
@@ -23,10 +24,7 @@ def login():
         senha_input = senha.get()
 
         # Busca usuários diretamente do GitHub
-        try:
-            lista_usuarios = usuarios.baixar_usuarios()
-        except:
-            lista_usuarios = []
+        lista_usuarios = baixar_usuarios()
 
         valido = False
         for u in lista_usuarios:
@@ -55,7 +53,7 @@ def login():
     ctk.CTkButton(tela, text="Entrar", command=verificar).pack(pady=10)
     erro = ctk.CTkLabel(tela, text="")
     erro.pack()
-    tela.protocol("WM_DELETE_WINDOW", sys.exit)  # fecha tudo se apertar X
+    tela.protocol("WM_DELETE_WINDOW", sys.exit)
     tela.mainloop()
 
 login()
@@ -128,7 +126,7 @@ def iniciar_limpeza():
         progress.set((i+1)/total)
     log("Limpeza completa")
 
-# --- Deep Clean (apenas atalho Ctrl+Shift+D) ---
+# --- Deep Clean (Ctrl+Shift+D) ---
 def abrir_deep(event=None):
     global deep_aberto
     if not deep_aberto:
